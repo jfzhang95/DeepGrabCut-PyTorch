@@ -3,6 +3,7 @@ import os
 import torch, cv2
 import random
 import numpy as np
+from copy import deepcopy
 
 
 def tens2image(im):
@@ -152,6 +153,95 @@ def extreme_points(mask, pert):
                      ])
 
 
+def distance_map(mask, pad=10, pert=0.15, relax=False):
+    bounds = (0, 0, mask.shape[1] - 1, mask.shape[0] - 1)
+
+    bbox = _get_bbox(mask, pad=pad, relax=relax) # get image bounding box
+    if bbox is not None:
+        bbox = add_noise(bbox, pert=pert)
+    else:
+        dismap = np.zeros_like(mask) + 255
+        return dismap
+
+    x_min = max(bbox[0], bounds[0])
+    y_min = max(bbox[1], bounds[1])
+    x_max = min(bbox[2], bounds[2])
+    y_max = min(bbox[3], bounds[3])
+
+    bbox = [x_min, y_min, x_max, y_max]
+
+    dismap = np.zeros((mask.shape[0], mask.shape[1]))
+    dismap = compute_dismap(dismap, bbox)
+    return dismap
+
+
+def compute_dismap(dismap, bbox):
+    x_min, y_min, x_max, y_max = bbox[:]
+
+    # draw bounding box
+    cv2.line(dismap, (x_min, y_min), (x_max, y_min), color=1, thickness=1)
+    cv2.line(dismap, (x_min, y_min), (x_min, y_max), color=1, thickness=1)
+    cv2.line(dismap, (x_max, y_max), (x_max, y_min), color=1, thickness=1)
+    cv2.line(dismap, (x_max, y_max), (x_min, y_max), color=1, thickness=1)
+
+    tmp = (dismap > 0).astype(np.uint8) # mark boundary
+    tmp_ = deepcopy(tmp)
+
+    fill_mask = np.ones((tmp.shape[0] + 2, tmp.shape[1] + 2)).astype(np.uint8)
+    fill_mask[1:-1, 1:-1] = tmp_
+    cv2.floodFill(tmp_, fill_mask, (int((x_min + x_max) / 2), int((y_min + y_max) / 2)), 5) # fill pixel inside bounding box
+
+    tmp_ = tmp_.astype(np.int8)
+    tmp_[tmp_ == 5] = -1 # pixel inside bounding box
+    tmp_[tmp_ == 0] = 1 # pixel on and outside bounding box
+
+    tmp = (tmp == 0).astype(np.uint8)
+
+    dismap = cv2.distanceTransform(tmp, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)  # compute distance inside and outside bounding box
+    dismap = tmp_ * dismap + 128
+
+    dismap[dismap > 255] = 255
+    dismap[dismap < 0] = 0
+
+    dismap = dismap.astype(np.uint8)
+
+    return dismap
+
+def add_noise(bbox, pert=0.15):
+    x_min, y_min, x_max, y_max = bbox[:]
+    x_min_new = int(x_min + pert * np.random.normal(0, 1) * (x_max - x_min))
+    x_max_new = int(x_max + pert * np.random.normal(0, 1) * (x_max - x_min))
+    y_min_new = int(y_min + pert * np.random.normal(0, 1) * (y_max - y_min))
+    y_max_new = int(y_max + pert * np.random.normal(0, 1) * (y_max - y_min))
+
+    return [x_min_new, y_min_new, x_max_new, y_max_new]
+
+
+def _get_bbox(mask, points=None, pad=0, relax=False):
+    if points is not None:
+        inds = np.flip(points.transpose(), axis=0)
+    else:
+        inds = np.where(mask > 0)
+
+    if inds[0].shape[0] == 0:
+        return None
+
+    if relax:
+        pad = 0
+
+    x_min_bound = 0
+    y_min_bound = 0
+    x_max_bound = mask.shape[1] - 1
+    y_max_bound = mask.shape[0] - 1
+
+    x_min = max(inds[1].min() - pad, x_min_bound)
+    y_min = max(inds[0].min() - pad, y_min_bound)
+    x_max = min(inds[1].max() + pad, x_max_bound)
+    y_max = min(inds[0].max() + pad, y_max_bound)
+
+    return [x_min, y_min, x_max, y_max]
+
+
 def get_bbox(mask, points=None, pad=0, zero_pad=False):
     if points is not None:
         inds = np.flip(points.transpose(), axis=0)
@@ -177,7 +267,7 @@ def get_bbox(mask, points=None, pad=0, zero_pad=False):
     x_max = min(inds[1].max() + pad, x_max_bound)
     y_max = min(inds[0].max() + pad, y_max_bound)
 
-    return x_min, y_min, x_max, y_max
+    return [x_min, y_min, x_max, y_max]
 
 
 def crop_from_bbox(img, bbox, zero_pad=False):

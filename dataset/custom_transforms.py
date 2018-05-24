@@ -4,7 +4,6 @@ import numpy.random as random
 import numpy as np
 import dataset.utils as helpers
 
-
 class ScaleNRotate(object):
     """Scale (zoom-in, zoom-out) and Rotate the image and the ground truth.
     Args:
@@ -84,12 +83,7 @@ class FixedResize(object):
 
             if 'meta' in elem or 'bbox' in elem or ('extreme_points_coord' in elem and elem not in self.resolutions):
                 continue
-            if 'extreme_points_coord' in elem and elem in self.resolutions:
-                bbox = sample['bbox']
-                crop_size = np.array([bbox[3]-bbox[1]+1, bbox[4]-bbox[2]+1])
-                res = np.array(self.resolutions[elem]).astype(np.float32)
-                sample[elem] = np.round(sample[elem]*res/crop_size).astype(np.int)
-                continue
+
             if elem in self.resolutions:
                 if self.resolutions[elem] is None:
                     continue
@@ -110,8 +104,6 @@ class FixedResize(object):
                         sample[elem] = helpers.fixed_resize(sample[elem], self.resolutions[elem])
                     else:
                         sample[elem] = helpers.fixed_resize(sample[elem], self.resolutions[elem], flagval=self.flagvals[elem])
-            else:
-                del sample[elem]
 
         return sample
 
@@ -166,9 +158,36 @@ class ExtremePoints(object):
         return 'ExtremePoints:(sigma='+str(self.sigma)+', pert='+str(self.pert)+', elem='+str(self.elem)+')'
 
 
+class DistanceMap(object):
+    """
+    Returns the four extreme points (left, right, top, bottom) (with some random perturbation) in a given binary mask
+    sigma: sigma of Gaussian to create a heatmap from a point
+    pert: number of pixels fo the maximum perturbation
+    elem: which element of the sample to choose as the binary mask
+    """
+    def __init__(self, pert=0.15, elem='gt'):
+        self.pert = pert
+        self.elem = elem
+
+    def __call__(self, sample):
+        if sample[self.elem].ndim == 3:
+            raise ValueError('DistanceMap not implemented for multiple object per image.')
+        _target = sample[self.elem]
+        if np.max(_target) == 0:
+            # TODO: if mask do no have any object, distance=255
+            sample['distance_map'] = np.zeros(_target.shape, dtype=_target.dtype) + 255
+        else:
+            sample['distance_map'] = helpers.distance_map(_target, self.pert)
+
+        return sample
+
+    def __str__(self):
+        return 'DistanceMap:(pert='+str(self.pert)+', elem='+str(self.elem)+')'
+
+
 class ConcatInputs(object):
 
-    def __init__(self, elems=('image', 'point')):
+    def __init__(self, elems=('image', 'distance_map')):
         self.elems = elems
 
     def __call__(self, sample):
@@ -190,7 +209,7 @@ class ConcatInputs(object):
         return sample
 
     def __str__(self):
-        return 'ExtremePoints:'+str(self.elems)
+        return 'ConcatInputs:'+str(self.elems)
 
 
 class CropFromMask(object):
@@ -214,17 +233,17 @@ class CropFromMask(object):
         for elem in self.crop_elems:
             _img = sample[elem]
             _crop = []
-            if self.mask_elem == elem:
+            if self.mask_elem == elem: # crop gt
                 if _img.ndim == 2:
                     _img = np.expand_dims(_img, axis=-1)
                 for k in range(0, _target.shape[-1]):
-                    _tmp_img = _img[..., k]
-                    _tmp_target = _target[..., k]
+                    _tmp_img = _img[..., k] # shape (h, w)
+                    _tmp_target = _target[..., k] # shape (h, w)
                     if np.max(_target[..., k]) == 0:
-                        _crop.append(np.zeros(_tmp_img.shape, dtype=_img.dtype))
+                        _crop.append(np.zeros(_tmp_img.shape, dtype=_img.dtype)) # gt only has background
                     else:
                         _crop.append(helpers.crop_from_mask(_tmp_img, _tmp_target, relax=self.relax, zero_pad=self.zero_pad))
-            else:
+            else: # crop image
                 for k in range(0, _target.shape[-1]):
                     if np.max(_target[..., k]) == 0:
                         _crop.append(np.zeros(_img.shape, dtype=_img.dtype))
@@ -277,7 +296,7 @@ class ToTensor(object):
                 sample[elem] = torch.from_numpy(tmp)
                 continue
 
-            tmp = sample[elem]
+            tmp = sample[elem].astype(np.float32)
 
             if tmp.ndim == 2:
                 tmp = tmp[:, :, np.newaxis]
@@ -286,7 +305,7 @@ class ToTensor(object):
             # numpy image: H x W x C
             # torch image: C X H X W
             tmp = tmp.transpose((2, 0, 1))
-            sample[elem] = torch.from_numpy(tmp)
+            sample[elem] = torch.from_numpy(tmp).float()
 
         return sample
 

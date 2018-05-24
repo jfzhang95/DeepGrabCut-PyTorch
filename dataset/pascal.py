@@ -13,19 +13,16 @@ class PascalVocDataset(Dataset):
     PascalVoc dataset
     """
 
-    def __init__(self, base_dir=Path.db_root_dir('pascal'), image_size=None, split='train', transform=None,
+    def __init__(self, base_dir=Path.db_root_dir('pascal'), split='train', transform=None,
                  area_thres=0, preprocess=False, default=False, retname=True):
         """
 
-        :param base_dir: path to DAVIS dataset directory
-        :param image_size: (width, height) tuple to resize the image
-        :param year: which train/val split of DAVIS to use
+        :param base_dir: path to VOC dataset directory
         :param phase: train/val
         :param transform: transform to apply
         """
         super().__init__()
         self._base_dir = base_dir
-        self._image_size = image_size
         self._image_dir = os.path.join(self._base_dir, 'JPEGImages')
         self._annotation_dir = os.path.join(self._base_dir, 'SegmentationGT')
         self._mask_dir = os.path.join(self._base_dir, 'SegmentationObject')
@@ -104,8 +101,8 @@ class PascalVocDataset(Dataset):
 
 
     def __getitem__(self, index):
-        _img, _target, _void_pixels, _, _, _ = self._make_img_gt_point_pair(index)
-        sample = {'image': _img, 'gt': _target, 'void_pixels': _void_pixels}
+        _img, _target, _, _, _, _ = self._make_img_gt_point_pair(index)
+        sample = {'image': _img, 'gt': _target}
 
         if self.retname: # return meta information
             _im_ii = self.obj_list[index][0]
@@ -198,14 +195,5 @@ class PascalVocDataset(Dataset):
 
     def __str__(self):
         return 'VOC2012(split=' + str(self.split) + ',area_thres=' + str(self.area_thres) + ')'
-# Transforms
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
 
-    def __call__(self, sample):
-        # swap color axis because
-        # numpy image: H x W x C
-        # torch image: C X H X W
-        return {'input': torch.from_numpy(sample['input'].transpose((2, 0, 1))),
-                'annotation': torch.from_numpy(sample['annotation'].astype(np.uint8))
-                }
+

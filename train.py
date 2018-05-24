@@ -1,4 +1,5 @@
 import socket
+import timeit
 from datetime import datetime
 import os
 import glob
@@ -19,10 +20,12 @@ from torch.nn.functional import upsample
 from tensorboardX import SummaryWriter
 
 # Custom includes
-from dataset import pascalvoc
+from dataset import pascal
 from mypath import Path
 from networks import deeplab_resnet as resnet
 from layers.loss import class_balanced_cross_entropy_loss
+from dataset import custom_transforms as tr
+
 
 gpu_id = 0
 print('Using GPU: {} '.format(gpu_id))
@@ -35,12 +38,11 @@ resume_epoch = 0  # Default is 0, change if want to resume
 
 p = OrderedDict()  # Parameters to include in report
 classifier = 'psp'  # Head classifier to use
-p['trainBatch'] = 5  # Training batch size
-testBatch = 5  # Testing batch size
+p['trainBatch'] = 4  # Training batch size
+testBatch = 4  # Testing batch size
 useTest = 1  # See evolution of the test set when training?
 nTestInterval = 10  # Run on test set every nTestInterval epochs
 snapshot = 20  # Store a model every snapshot epochs
-relax_crop = 50  # Enlarge the bounding box by relax_crop pixels
 nInputChannels = 4  # Number of input channels (RGB + Distance Map of bounding box)
 zero_pad_crop = True  # Insert zero padding when cropping the image
 p['nAveGrad'] = 1  # Average the gradient of several iterations
@@ -55,17 +57,17 @@ print(save_dir_root)
 print(exp_name)
 
 if resume_epoch == 0:
-    runs = sorted(glob.glob(os.path.join(save_dir_root, 'run_*')))
+    runs = sorted(glob.glob(os.path.join(save_dir_root, 'run', 'run_*')))
     run_id = int(runs[-1].split('_')[-1]) + 1 if runs else 0
 else:
     run_id = 0
-save_dir = os.path.join(save_dir_root, 'run_' + str(run_id))
+save_dir = os.path.join(save_dir_root, 'run', 'run_' + str(run_id))
 if not os.path.exists(os.path.join(save_dir, 'models')):
     os.makedirs(os.path.join(save_dir, 'models'))
 
 # Network definition
 modelName = 'dextr_pascal'
-net = resnet.resnet101(1, pretrained=True, nInputChannels=nInputChannels, classifier=classifier)
+net = resnet.resnet101(1, pretrained=False, nInputChannels=nInputChannels, classifier=classifier)
 
 if resume_epoch == 0:
     print("Initializing from pretrained Deeplab-v2 model")
@@ -90,20 +92,110 @@ if resume_epoch != nEpochs:
     optimizer = optim.SGD(train_params, lr=p['lr'], momentum=p['momentum'], weight_decay=p['wd'])
     p['optimizer'] = str(optimizer)
 
-    voc_train = pascalvoc.PascalVocDataset(image_size=(image_width, image_height),
-                                             phase='train',
-                                             transform=pascalvoc.ToTensor())
+    composed_transforms_tr = transforms.Compose([
+        tr.RandomHorizontalFlip(),
+        tr.ScaleNRotate(rots=(-15, 15), scales=(.75, 1.25)),
+        tr.FixedResize(resolutions={'image': (450, 450), 'gt': (450, 450)}),
+        tr.DistanceMap(pert=0.15, elem='gt'),
+        tr.ConcatInputs(elems=('image', 'distance_map')),
+        tr.ToTensor()])
 
-    trainloader = DataLoader(dataset=voc_train, batch_size=5)
+    composed_transforms_ts = transforms.Compose([
+        tr.FixedResize(resolutions={'image': (450, 450), 'gt': (450, 450)}),
+        tr.DistanceMap(pert=0.15, elem='gt'),
+        tr.ConcatInputs(elems=('image', 'distance_map')),
+        tr.ToTensor()])
 
-    # generate_param_report(os.path.join(save_dir, exp_name + '.txt'), p)
+    voc_train = pascal.PascalVocDataset(split='train', transform=composed_transforms_tr)
+    voc_val = pascal.PascalVocDataset(split='val', transform=composed_transforms_ts)
+
+
+    trainloader = DataLoader(voc_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
+    testloader = DataLoader(voc_val, batch_size=testBatch, shuffle=False, num_workers=2)
+
 
     num_img_tr = len(trainloader)
-
+    num_img_ts = len(testloader)
     running_loss_tr = 0.0
     running_loss_ts = 0.0
     aveGrad = 0
     print("Training Network")
+
+    # Main Training and Testing Loop
+    for epoch in range(resume_epoch, nEpochs):
+        start_time = timeit.default_timer()
+
+        net.train()
+        for ii, sample_batched in enumerate(trainloader):
+
+            inputs, gts = sample_batched['concat'], sample_batched['gt']
+
+            # Forward-Backward of the mini-batch
+            inputs, gts = Variable(inputs), Variable(gts)
+            if gpu_id >= 0:
+                inputs, gts = inputs.cuda(), gts.cuda()
+
+            output = net.forward(inputs)
+            output = upsample(output, size=(450, 450), mode='bilinear')
+
+            # Compute the losses, side outputs and fuse
+            loss = class_balanced_cross_entropy_loss(output, gts, size_average=False, batch_average=True)
+            running_loss_tr += loss.item()
+
+            # Print stuff
+            if ii % num_img_tr == num_img_tr - 1:
+                running_loss_tr = running_loss_tr / num_img_tr
+                writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
+                print('[Epoch: %d, numImages: %5d]' % (epoch, ii * p['trainBatch'] + inputs.data.shape[0]))
+                print('Loss: %f' % running_loss_tr)
+                running_loss_tr = 0
+                stop_time = timeit.default_timer()
+                print("Execution time: " + str(stop_time - start_time) + "\n")
+
+            # Backward the averaged gradient
+            loss /= p['nAveGrad']
+            loss.backward()
+            aveGrad += 1
+
+            # Update the weights once in p['nAveGrad'] forward passes
+            if aveGrad % p['nAveGrad'] == 0:
+                writer.add_scalar('data/total_loss_iter', loss.item(), ii + num_img_tr * epoch)
+                optimizer.step()
+                optimizer.zero_grad()
+                aveGrad = 0
+
+        # Save the model
+        if (epoch % snapshot) == snapshot - 1 and epoch != 0:
+            torch.save(net.state_dict(), os.path.join(save_dir, 'models', modelName + '_epoch-' + str(epoch) + '.pth'))
+
+        # One testing epoch
+        if useTest and epoch % nTestInterval == (nTestInterval - 1):
+            net.eval()
+            for ii, sample_batched in enumerate(testloader):
+                inputs, gts = sample_batched['concat'], sample_batched['gt']
+
+                # Forward pass of the mini-batch
+                inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
+                if gpu_id >= 0:
+                    inputs, gts = inputs.cuda(), gts.cuda()
+
+                output = net.forward(inputs)
+                output = upsample(output, size=(450, 450), mode='bilinear')
+
+                # Compute the losses, side outputs and fuse
+                loss = class_balanced_cross_entropy_loss(output, gts, size_average=False)
+                running_loss_ts += loss.data[0]
+
+                # Print stuff
+                if ii % num_img_ts == num_img_ts - 1:
+                    running_loss_ts = running_loss_ts / num_img_ts
+                    print('[Epoch: %d, numImages: %5d]' % (epoch, ii * testBatch + inputs.data.shape[0]))
+                    writer.add_scalar('data/test_loss_epoch', running_loss_ts, epoch)
+                    print('Loss: %f' % running_loss_ts)
+                    running_loss_ts = 0
+
+    writer.close()
+
 
 
 
