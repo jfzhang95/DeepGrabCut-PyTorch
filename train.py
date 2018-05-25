@@ -66,8 +66,8 @@ if not os.path.exists(os.path.join(save_dir, 'models')):
     os.makedirs(os.path.join(save_dir, 'models'))
 
 # Network definition
-modelName = 'dextr_pascal'
-net = resnet.resnet101(1, pretrained=False, nInputChannels=nInputChannels, classifier=classifier)
+modelName = 'deepgc_pascal'
+net = resnet.resnet101(1, pretrained=True, nInputChannels=nInputChannels, classifier=classifier)
 
 if resume_epoch == 0:
     print("Initializing from pretrained Deeplab-v2 model")
@@ -143,7 +143,7 @@ if resume_epoch != nEpochs:
             running_loss_tr += loss.item()
 
             # Print stuff
-            if ii % num_img_tr == num_img_tr - 1:
+            if ii % num_img_tr == num_img_tr - 1 or ii == 0:
                 running_loss_tr = running_loss_tr / num_img_tr
                 writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
                 print('[Epoch: %d, numImages: %5d]' % (epoch, ii * p['trainBatch'] + inputs.data.shape[0]))
@@ -175,16 +175,17 @@ if resume_epoch != nEpochs:
                 inputs, gts = sample_batched['concat'], sample_batched['gt']
 
                 # Forward pass of the mini-batch
-                inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
+                inputs, gts = Variable(inputs, requires_grad=True), Variable(gts)
                 if gpu_id >= 0:
                     inputs, gts = inputs.cuda(), gts.cuda()
-
-                output = net.forward(inputs)
+		
+		with torch.no_grad():
+                    output = net.forward(inputs)
                 output = upsample(output, size=(450, 450), mode='bilinear')
 
                 # Compute the losses, side outputs and fuse
                 loss = class_balanced_cross_entropy_loss(output, gts, size_average=False)
-                running_loss_ts += loss.data[0]
+                running_loss_ts += loss.item()
 
                 # Print stuff
                 if ii % num_img_ts == num_img_ts - 1:

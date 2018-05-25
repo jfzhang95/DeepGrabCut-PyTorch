@@ -200,6 +200,7 @@ class ResNet(nn.Module):
         flag = 0
         for module, module_ori in zip(self.modules(), base_network.Scale.modules()):
             if isinstance(module, nn.Conv2d) and isinstance(module_ori, nn.Conv2d):
+                # 3 channel -> 4 channel
                 if not flag and nInputChannels != 3:
                     module.weight[:, :3, :, :].data = deepcopy(module_ori.weight.data)
                     module.bias = deepcopy(module_ori.bias)
@@ -207,7 +208,7 @@ class ResNet(nn.Module):
                         module.weight[:, i, :, :].data = deepcopy(module_ori.weight[:, -1, :, :][:, np.newaxis, :, :].data)
                     flag = 1
                 elif module.weight.data.shape == module_ori.weight.data.shape:
-                    module.weight = deepcopy(module_ori.weight)
+                    module.weight = torch.nn.Parameter(deepcopy(module_ori.weight)) # add nn.Parameter
                     module.bias = deepcopy(module_ori.bias)
                 else:
                     print('Skipping Conv layer with size: {} and target size: {}'
