@@ -131,7 +131,7 @@ if resume_epoch != nEpochs:
             inputs, gts = sample_batched['concat'], sample_batched['gt']
 
             # Forward-Backward of the mini-batch
-            inputs, gts = Variable(inputs), Variable(gts)
+            inputs, gts = Variable(inputs, requires_grad=True), Variable(gts)
             if gpu_id >= 0:
                 inputs, gts = inputs.cuda(), gts.cuda()
 
@@ -178,8 +178,8 @@ if resume_epoch != nEpochs:
                 inputs, gts = Variable(inputs, requires_grad=True), Variable(gts)
                 if gpu_id >= 0:
                     inputs, gts = inputs.cuda(), gts.cuda()
-		
-		with torch.no_grad():
+
+                with torch.no_grad():
                     output = net.forward(inputs)
                 output = upsample(output, size=(450, 450), mode='bilinear')
 
