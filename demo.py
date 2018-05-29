@@ -9,8 +9,6 @@ from matplotlib import pyplot as plt
 from torch.nn.functional import upsample
 from dataset import utils
 import networks.deeplab_resnet as resnet
-from mypath import Path
-import sys
 
 from glob import glob
 from copy import deepcopy
@@ -39,8 +37,8 @@ device = torch.device("cuda:"+str(gpu_id) if torch.cuda.is_available() else "cpu
 
 #  Create the network and load the weights
 net = resnet.resnet101(1, nInputChannels=4, classifier='psp')
-print("Initializing weights from: {}".format('run', 'run_0', 'models', 'deepgc_pascal_epoch-99.pth'))
-state_dict_checkpoint = torch.load(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-99.pth'),
+print("Initializing weights from: {}".format(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-79.pth')))
+state_dict_checkpoint = torch.load(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-79.pth'),
                                    map_location=lambda storage, loc: storage)
 
 net.load_state_dict(state_dict_checkpoint)
@@ -125,10 +123,6 @@ def main():
             fill_mask[1:-1, 1:-1] = tmp_
             fill_mask = fill_mask.astype(np.uint8)
             cv2.floodFill(tmp_, fill_mask, (int((left + right) / 2), int((up + down) / 2)), 5)
-            # fill_mask获得的是填充后的图 包括边缘和边缘内部， fill_mask边缘和内部的值都被填充为1
-            # output边缘的值为10，其余地方的值为0
-            # fill_mask = fill_mask.astype(np.float32)
-            # fill_mask = cv2.resize(fill_mask, img_shape)
             tmp_ = tmp_.astype(np.int8)
 
             output = cv2.resize(output, img_shape)
@@ -137,7 +131,7 @@ def main():
             tmp_[tmp_ == 5] = -1  # pixel inside bounding box
             tmp_[tmp_ == 0] = 1  # pixel on and outside bounding box
 
-            tmp = (tmp == 0).astype(np.uint8) # output中边缘值为0，其余地方值为1
+            tmp = (tmp == 0).astype(np.uint8)
 
             dismap = cv2.distanceTransform(tmp, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)  # compute distance inside and outside bounding box
             dismap = tmp_ * dismap + 128
@@ -146,14 +140,11 @@ def main():
             dismap[dismap < 0] = 0
             dismap = dismap
 
-            # image = cv2.imread(image_list[image_idx])
-            # image = utils.fixed_resize(image, (450, 450))
             dismap = utils.fixed_resize(dismap, (450, 450)).astype(np.uint8)
-            cv2.imwrite('output.png', dismap)
 
             dismap = np.expand_dims(dismap, axis=-1)
 
-
+            image = image[:, :, ::-1] # change to rgb
             merge_input = np.concatenate((image, dismap), axis=2).astype(np.float32)
             inputs = torch.from_numpy(merge_input.transpose((2, 0, 1))[np.newaxis, ...])
 
@@ -168,15 +159,11 @@ def main():
             prediction = np.squeeze(prediction)
             prediction[prediction>0.8] = 255
             prediction[prediction<=0.8] = 0
-            cv2.imwrite('prediction.png', prediction)
             print('prediction done!')
-
-            red_mask = np.zeros((img_shape+(3,)))
-            red_mask[:, :] = (0, 0, 255)
-
-            # print(image.shape)
-            # image = (image * (1 - display_mask) + red_mask * display_mask).astype(np.uint8)
-            image = prediction
+            prediction = np.expand_dims(prediction, axis=-1).astype(np.uint8)
+            image = image[:, :, ::-1] # change to bgr
+            display_mask = np.concatenate([prediction, prediction, prediction], axis=-1)
+            image = cv2.addWeighted(image, 0.9, display_mask, 0.5, 0.1)
 
         if k == 99:
             break
