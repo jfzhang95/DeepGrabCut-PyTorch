@@ -160,9 +160,10 @@ def main():
             prediction[prediction>0.8] = 255
             prediction[prediction<=0.8] = 0
             print('prediction done!')
+
             prediction = np.expand_dims(prediction, axis=-1).astype(np.uint8)
             image = image[:, :, ::-1] # change to bgr
-            display_mask = np.concatenate([prediction, prediction, prediction], axis=-1)
+            display_mask = np.concatenate([np.zeros_like(prediction), np.zeros_like(prediction), prediction], axis=-1)
             image = cv2.addWeighted(image, 0.9, display_mask, 0.5, 0.1)
 
         if k == 99:

@@ -96,19 +96,18 @@ if resume_epoch != nEpochs:
         tr.RandomHorizontalFlip(),
         tr.ScaleNRotate(rots=(-15, 15), scales=(.75, 1.25)),
         tr.FixedResize(resolutions={'image': (450, 450), 'gt': (450, 450)}),
-        tr.DistanceMap(pert=0.15, elem='gt'),
+        tr.DistanceMap(v=0.15, elem='gt'),
         tr.ConcatInputs(elems=('image', 'distance_map')),
         tr.ToTensor()])
 
     composed_transforms_ts = transforms.Compose([
         tr.FixedResize(resolutions={'image': (450, 450), 'gt': (450, 450)}),
-        tr.DistanceMap(pert=0.15, elem='gt'),
+        tr.DistanceMap(v=0.15, elem='gt'),
         tr.ConcatInputs(elems=('image', 'distance_map')),
         tr.ToTensor()])
 
     voc_train = pascal.PascalVocDataset(split='train', transform=composed_transforms_tr)
     voc_val = pascal.PascalVocDataset(split='val', transform=composed_transforms_ts)
-
 
     trainloader = DataLoader(voc_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
     testloader = DataLoader(voc_val, batch_size=testBatch, shuffle=False, num_workers=2)

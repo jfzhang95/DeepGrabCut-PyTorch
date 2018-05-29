@@ -2,7 +2,7 @@ import torch, cv2
 
 import numpy.random as random
 import numpy as np
-import dataset.utils as helpers
+from dataset import utils
 
 class ScaleNRotate(object):
     """Scale (zoom-in, zoom-out) and Rotate the image and the ground truth.
@@ -96,14 +96,14 @@ class FixedResize(object):
                     sample[elem] = np.zeros(output_size, dtype=np.float32)
                     for ii, crop in enumerate(tmp):
                         if self.flagvals is None:
-                            sample[elem][..., ii] = helpers.fixed_resize(crop, self.resolutions[elem])
+                            sample[elem][..., ii] = utils.fixed_resize(crop, self.resolutions[elem])
                         else:
-                            sample[elem][..., ii] = helpers.fixed_resize(crop, self.resolutions[elem], flagval=self.flagvals[elem])
+                            sample[elem][..., ii] = utils.fixed_resize(crop, self.resolutions[elem], flagval=self.flagvals[elem])
                 else:
                     if self.flagvals is None:
-                        sample[elem] = helpers.fixed_resize(sample[elem], self.resolutions[elem])
+                        sample[elem] = utils.fixed_resize(sample[elem], self.resolutions[elem])
                     else:
-                        sample[elem] = helpers.fixed_resize(sample[elem], self.resolutions[elem], flagval=self.flagvals[elem])
+                        sample[elem] = utils.fixed_resize(sample[elem], self.resolutions[elem], flagval=self.flagvals[elem])
 
         return sample
 
@@ -130,43 +130,14 @@ class RandomHorizontalFlip(object):
         return 'RandomHorizontalFlip'
 
 
-class ExtremePoints(object):
-    """
-    Returns the four extreme points (left, right, top, bottom) (with some random perturbation) in a given binary mask
-    sigma: sigma of Gaussian to create a heatmap from a point
-    pert: number of pixels fo the maximum perturbation
-    elem: which element of the sample to choose as the binary mask
-    """
-    def __init__(self, sigma=10, pert=0, elem='gt'):
-        self.sigma = sigma
-        self.pert = pert
-        self.elem = elem
-
-    def __call__(self, sample):
-        if sample[self.elem].ndim == 3:
-            raise ValueError('ExtremePoints not implemented for multiple object per image.')
-        _target = sample[self.elem]
-        if np.max(_target) == 0:
-            sample['extreme_points'] = np.zeros(_target.shape, dtype=_target.dtype) #  TODO: handle one_mask_per_point case
-        else:
-            _points = helpers.extreme_points(_target, self.pert)
-            sample['extreme_points'] = helpers.make_gt(_target, _points, sigma=self.sigma, one_mask_per_point=False)
-
-        return sample
-
-    def __str__(self):
-        return 'ExtremePoints:(sigma='+str(self.sigma)+', pert='+str(self.pert)+', elem='+str(self.elem)+')'
-
-
 class DistanceMap(object):
     """
-    Returns the four extreme points (left, right, top, bottom) (with some random perturbation) in a given binary mask
-    sigma: sigma of Gaussian to create a heatmap from a point
-    pert: number of pixels fo the maximum perturbation
+    Returns the distance map in a given binary mask
+    v: controls the degree of rectangle variation
     elem: which element of the sample to choose as the binary mask
     """
-    def __init__(self, pert=0.15, elem='gt'):
-        self.pert = pert
+    def __init__(self, v=0.15, elem='gt'):
+        self.v = v
         self.elem = elem
 
     def __call__(self, sample):
@@ -177,12 +148,12 @@ class DistanceMap(object):
             # TODO: if mask do no have any object, distance=255
             sample['distance_map'] = np.zeros(_target.shape, dtype=_target.dtype) + 255
         else:
-            sample['distance_map'] = helpers.distance_map(_target, self.pert)
+            sample['distance_map'] = utils.distance_map(_target, self.v)
 
         return sample
 
     def __str__(self):
-        return 'DistanceMap:(pert='+str(self.pert)+', elem='+str(self.elem)+')'
+        return 'DistanceMap:(v='+str(self.v)+', elem='+str(self.elem)+')'
 
 
 class ConcatInputs(object):
@@ -210,77 +181,6 @@ class ConcatInputs(object):
 
     def __str__(self):
         return 'ConcatInputs:'+str(self.elems)
-
-
-class CropFromMask(object):
-    """
-    Returns image cropped in bounding box from a given mask
-    """
-    def __init__(self, crop_elems=('image', 'gt'),
-                 mask_elem='gt',
-                 relax=0,
-                 zero_pad=False):
-
-        self.crop_elems = crop_elems
-        self.mask_elem = mask_elem
-        self.relax = relax
-        self.zero_pad = zero_pad
-
-    def __call__(self, sample):
-        _target = sample[self.mask_elem]
-        if _target.ndim == 2:
-            _target = np.expand_dims(_target, axis=-1)
-        for elem in self.crop_elems:
-            _img = sample[elem]
-            _crop = []
-            if self.mask_elem == elem: # crop gt
-                if _img.ndim == 2:
-                    _img = np.expand_dims(_img, axis=-1)
-                for k in range(0, _target.shape[-1]):
-                    _tmp_img = _img[..., k] # shape (h, w)
-                    _tmp_target = _target[..., k] # shape (h, w)
-                    if np.max(_target[..., k]) == 0:
-                        _crop.append(np.zeros(_tmp_img.shape, dtype=_img.dtype)) # gt only has background
-                    else:
-                        _crop.append(helpers.crop_from_mask(_tmp_img, _tmp_target, relax=self.relax, zero_pad=self.zero_pad))
-            else: # crop image
-                for k in range(0, _target.shape[-1]):
-                    if np.max(_target[..., k]) == 0:
-                        _crop.append(np.zeros(_img.shape, dtype=_img.dtype))
-                    else:
-                        _tmp_target = _target[..., k]
-                        _crop.append(helpers.crop_from_mask(_img, _tmp_target, relax=self.relax, zero_pad=self.zero_pad))
-            if len(_crop) == 1:
-                sample['crop_' + elem] = _crop[0]
-            else:
-                sample['crop_' + elem] = _crop
-        return sample
-
-    def __str__(self):
-        return 'CropFromMask:(crop_elems='+str(self.crop_elems)+', mask_elem='+str(self.mask_elem)+\
-               ', relax='+str(self.relax)+',zero_pad='+str(self.zero_pad)+')'
-
-
-class ToImage(object):
-    """
-    Return the given elements between 0 and 255
-    """
-    def __init__(self, norm_elem='image', custom_max=255.):
-        self.norm_elem = norm_elem
-        self.custom_max = custom_max
-
-    def __call__(self, sample):
-        if isinstance(self.norm_elem, tuple):
-            for elem in self.norm_elem:
-                tmp = sample[elem]
-                sample[elem] = self.custom_max * (tmp - tmp.min()) / (tmp.max() - tmp.min() + 1e-10)
-        else:
-            tmp = sample[self.norm_elem]
-            sample[self.norm_elem] = self.custom_max * (tmp - tmp.min()) / (tmp.max() - tmp.min() + 1e-10)
-        return sample
-
-    def __str__(self):
-        return 'NormalizeImage'
 
 
 class ToTensor(object):
