@@ -32,7 +32,7 @@ The code was tested with Python 3.5. To use this code, please do:
     python demo.py
     ```
 If installed correctly, the result should look like this:
-<p align="center"><img src="doc/demo.gif" align="center" width=480 height=auto/></p>
+<p align="center"><img src="doc/demo.gif" align="center" width=450 height=auto/></p>
 
 To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additional steps:
 
@@ -45,8 +45,8 @@ To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additiona
     ```
 5. Set the paths in ```mypath.py```, so that they point to the location of PASCAL/SBD dataset.
 
-7. Run ```python train.py```, after changing the default parameters, if necessary (eg. gpu_id).
+6. Run ```python train.py``` to train Deep Grabcut.
 
-
+### Acknowledgment
 We thank the authors of [DEXTR-PyTorch](https://github.com/scaelles/DEXTR-PyTorch), our repo borrows tons of code from they.
 
