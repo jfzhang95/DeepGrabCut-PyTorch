@@ -1,3 +1,8 @@
-*
+# ignore
+deepgc_pascal_epoch-99.pth
+MS_DeepLab_resnet_trained_VOC.pth
+.gitignore
+
+# except
 !download_pretrained_psp_model.sh
 !download_deepgc_model.sh
