@@ -48,5 +48,5 @@ To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additiona
 6. Run ```python train.py``` to train Deep Grabcut.
 
 ### Acknowledgment
-We thank the authors of [DEXTR-PyTorch](https://github.com/scaelles/DEXTR-PyTorch), our repo borrows tons of code from they.
+We thank the authors of [DEXTR-PyTorch](https://github.com/scaelles/DEXTR-PyTorch), our repo borrows tons of code from them.
 
