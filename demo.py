@@ -2,9 +2,7 @@ import cv2
 import numpy as np
 import os
 import torch
-from collections import OrderedDict
-from PIL import Image
-from matplotlib import pyplot as plt
+
 
 from torch.nn.functional import upsample
 from dataset import utils
@@ -26,6 +24,7 @@ image = utils.fixed_resize(image, img_shape).astype(np.uint8)
 w = img_shape[0]
 h = img_shape[1]
 output = np.zeros((w, h, 3), np.uint8)
+thres = 0.8
 
 left = 0xFFF
 right = 0
@@ -37,20 +36,19 @@ device = torch.device("cuda:"+str(gpu_id) if torch.cuda.is_available() else "cpu
 
 #  Create the network and load the weights
 net = resnet.resnet101(1, nInputChannels=4, classifier='psp')
-print("Initializing weights from: {}".format(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-79.pth')))
-state_dict_checkpoint = torch.load(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-79.pth'),
+print("Initializing weights from: {}".format(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-99.pth')))
+state_dict_checkpoint = torch.load(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-99.pth'),
                                    map_location=lambda storage, loc: storage)
 
 net.load_state_dict(state_dict_checkpoint)
 net.eval()
 net.to(device)
 
-# mouse callback function
-def interactive_drawing(event, x, y, flags, param):
+
+def interactive_drawing(event, x, y, flag, params):
     global xs, ys, ix, iy, drawing, image, output, left, right, up, down
 
     if event == cv2.EVENT_LBUTTONDOWN:
-        print('down')
         drawing = True
         ix, iy = x, y
         xs, ys = x, y
@@ -157,9 +155,8 @@ def main():
             prediction = np.transpose(outputs.data.numpy()[0, ...], (1, 2, 0))
             prediction = 1 / (1 + np.exp(-prediction))
             prediction = np.squeeze(prediction)
-            prediction[prediction>0.8] = 255
-            prediction[prediction<=0.8] = 0
-            print('prediction done!')
+            prediction[prediction>thres] = 255
+            prediction[prediction<=thres] = 0
 
             prediction = np.expand_dims(prediction, axis=-1).astype(np.uint8)
             image = image[:, :, ::-1] # change to bgr

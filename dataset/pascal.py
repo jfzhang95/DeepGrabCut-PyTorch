@@ -1,24 +1,27 @@
+from __future__ import print_function, division
 import os
-import torch
 from PIL import Image
-import cv2
 import numpy as np
-from torch.utils.data import Dataset, sampler
-from natsort import natsorted
+from torch.utils.data import Dataset
 from mypath import Path
 import json
 
-class PascalVocDataset(Dataset):
+class VOCSegmentation(Dataset):
     """
     PascalVoc dataset
     """
 
-    def __init__(self, base_dir=Path.db_root_dir('pascal'), split='train', transform=None,
-                 area_thres=0, preprocess=False, default=False, retname=True):
+    def __init__(self,
+                 base_dir=Path.db_root_dir('pascal'),
+                 split='train',
+                 transform=None,
+                 area_thres=0,
+                 preprocess=False,
+                 default=False,
+                 retname=True):
         """
-
         :param base_dir: path to VOC dataset directory
-        :param phase: train/val
+        :param split: train/val
         :param transform: transform to apply
         """
         super().__init__()
@@ -94,7 +97,6 @@ class PascalVocDataset(Dataset):
         # Display stats
         print('Number of images: {:d}\nNumber of objects: {:d}'.format(num_images, len(self.obj_list)))
 
-        self._make_img_gt_point_pair(1)
 
     def __len__(self):
         return len(self.obj_list)
@@ -197,3 +199,38 @@ class PascalVocDataset(Dataset):
         return 'VOC2012(split=' + str(self.split) + ',area_thres=' + str(self.area_thres) + ')'
 
 
+if __name__ == '__main__':
+    from dataset import custom_transforms as tr
+    from torch.utils.data import DataLoader
+    from torchvision import transforms
+    import matplotlib.pyplot as plt
+
+    composed_transforms_tr = transforms.Compose([
+        tr.RandomHorizontalFlip(),
+        tr.ScaleNRotate(rots=(-15, 15), scales=(.75, 1.25)),
+        tr.FixedResize(resolutions={'image': (450, 450), 'gt': (450, 450)}),
+        tr.DistanceMap(v=0.15, elem='gt'),
+        tr.ConcatInputs(elems=('image', 'distance_map')),
+        tr.ToTensor()])
+
+    voc_train = VOCSegmentation(split='train', retname=False,
+                                transform=composed_transforms_tr)
+
+    dataloader = DataLoader(voc_train, batch_size=2, shuffle=True, num_workers=2)
+
+    for ii, sample in enumerate(dataloader):
+        for jj in range(sample["image"].size()[0]):
+            dismap = sample['distance_map'][jj].numpy()
+            gt = sample['gt'][jj].numpy()
+            gt[gt > 0] = 255
+            gt = np.array(gt[0]).astype(np.uint8)
+            dismap = np.array(dismap[0]).astype(np.uint8)
+            display = 0.9 * gt + 0.4 * dismap
+            display = display.astype(np.uint8)
+            plt.figure()
+            plt.title('display')
+            plt.imshow(display, cmap='gray')
+
+        if ii == 1:
+            break
+    plt.show(block=True)

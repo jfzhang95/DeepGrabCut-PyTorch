@@ -20,7 +20,8 @@ from torch.nn.functional import upsample
 from tensorboardX import SummaryWriter
 
 # Custom includes
-from dataset import pascal
+from dataset.combine_dbs import CombineDBs as combine_dbs
+from dataset import pascal, sbd
 from mypath import Path
 from networks import deeplab_resnet as resnet
 from layers.loss import class_balanced_cross_entropy_loss
@@ -30,19 +31,17 @@ from dataset import custom_transforms as tr
 gpu_id = 0
 print('Using GPU: {} '.format(gpu_id))
 # Setting parameters
-image_width = 450
-image_height = 450
-
-nEpochs = 100  # Number of epochs for training
+use_sbd = True
+nEpochs = 250  # Number of epochs for training
 resume_epoch = 0  # Default is 0, change if want to resume
 
 p = OrderedDict()  # Parameters to include in report
 classifier = 'psp'  # Head classifier to use
 p['trainBatch'] = 4  # Training batch size
 testBatch = 4  # Testing batch size
-useTest = 1  # See evolution of the test set when training?
+useTest = True  # See evolution of the test set when training
 nTestInterval = 10  # Run on test set every nTestInterval epochs
-snapshot = 20  # Store a model every snapshot epochs
+snapshot = 50  # Store a model every snapshot epochs
 nInputChannels = 4  # Number of input channels (RGB + Distance Map of bounding box)
 zero_pad_crop = True  # Insert zero padding when cropping the image
 p['nAveGrad'] = 1  # Average the gradient of several iterations
@@ -61,6 +60,7 @@ if resume_epoch == 0:
     run_id = int(runs[-1].split('_')[-1]) + 1 if runs else 0
 else:
     run_id = 0
+
 save_dir = os.path.join(save_dir_root, 'run', 'run_' + str(run_id))
 if not os.path.exists(os.path.join(save_dir, 'models')):
     os.makedirs(os.path.join(save_dir, 'models'))
@@ -106,10 +106,16 @@ if resume_epoch != nEpochs:
         tr.ConcatInputs(elems=('image', 'distance_map')),
         tr.ToTensor()])
 
-    voc_train = pascal.PascalVocDataset(split='train', transform=composed_transforms_tr)
-    voc_val = pascal.PascalVocDataset(split='val', transform=composed_transforms_ts)
+    voc_train = pascal.VOCSegmentation(split='train', transform=composed_transforms_tr)
+    voc_val = pascal.VOCSegmentation(split='val', transform=composed_transforms_ts)
 
-    trainloader = DataLoader(voc_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
+    if use_sbd:
+        sbd_train = sbd.SBDSegmentation(split=['train', 'val'], transform=composed_transforms_tr, retname=True)
+        db_train = combine_dbs([voc_train, sbd_train], excluded=[voc_val])
+    else:
+        db_train = voc_train
+
+    trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
     testloader = DataLoader(voc_val, batch_size=testBatch, shuffle=False, num_workers=2)
 
 
