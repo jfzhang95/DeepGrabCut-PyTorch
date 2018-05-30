@@ -26,7 +26,7 @@ from mypath import Path
 from networks import deeplab_resnet as resnet
 from layers.loss import class_balanced_cross_entropy_loss
 from dataset import custom_transforms as tr
-
+     
 
 gpu_id = 0
 print('Using GPU: {} '.format(gpu_id))
