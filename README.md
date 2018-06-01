@@ -2,7 +2,7 @@
 
 ![DEXTR](doc/deepgc.png)
 
-This is a PyTorch implementation of [Deep GrabCut](https://arxiv.org/pdf/1707.00243), for object segmentation.
+This is a PyTorch implementation of [Deep GrabCut](https://arxiv.org/pdf/1707.00243), for object segmentation. We use DeepLab-v2 instead of DeconvNet in this repo.
 
 ### Installation
 The code was tested with Python 3.5. To use this code, please do:
@@ -42,5 +42,5 @@ To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additiona
 6. Run ```python train.py``` to train Deep Grabcut.
 
 ### Acknowledgment
-We thank the authors of [DEXTR-PyTorch](https://github.com/scaelles/DEXTR-PyTorch), our repo borrows tons of code from they.
+We thank the authors of [DEXTR-PyTorch](https://github.com/scaelles/DEXTR-PyTorch), our repo borrows tons of code from them.
 
