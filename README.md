@@ -19,7 +19,7 @@ The code was tested with Python 3.5. To use this code, please do:
     pip install matplotlib opencv pillow
     ```
   
-2. You can download pretrained model from [here](), and then put the model into models/
+2. You can download pretrained model from [here](https://drive.google.com/open?id=1N8bICHnFit6lLGvGwVu6bnDttyTk6wGH), and then put the model into models/
 
 3. To try the demo of Deep GrabCut, please run:
     ```Shell
