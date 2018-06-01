@@ -36,8 +36,8 @@ device = torch.device("cuda:"+str(gpu_id) if torch.cuda.is_available() else "cpu
 
 #  Create the network and load the weights
 net = resnet.resnet101(1, nInputChannels=4, classifier='psp')
-print("Initializing weights from: {}".format(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-99.pth')))
-state_dict_checkpoint = torch.load(os.path.join('run', 'run_0', 'models', 'deepgc_pascal_epoch-99.pth'),
+print("Initializing weights from: {}".format(os.path.join('models/', 'deepgc_pascal_epoch-99.pth')))
+state_dict_checkpoint = torch.load(os.path.join('models/', 'deepgc_pascal_epoch-99.pth'),
                                    map_location=lambda storage, loc: storage)
 
 net.load_state_dict(state_dict_checkpoint)

@@ -19,13 +19,7 @@ The code was tested with Python 3.5. To use this code, please do:
     pip install matplotlib opencv pillow
     ```
   
-2. Download the model by running the script inside ```models/```:
-    ```Shell
-    cd models/
-    chmod +x download_deepgc_model.sh
-    ./download_deepgc_model.sh
-    cd ..
-    ```
+2. You can download pretrained model from [here](), and then put the model into models/
 
 3. To try the demo of Deep GrabCut, please run:
     ```Shell
