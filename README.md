@@ -19,7 +19,7 @@ The code was tested with Python 3.5. To use this code, please do:
     pip install matplotlib opencv pillow
     ```
   
-2. You can download pretrained model from [here](https://drive.google.com/open?id=1N8bICHnFit6lLGvGwVu6bnDttyTk6wGH), and then put the model into models/
+2. You can download pretrained model from [GoogleDrive](https://drive.google.com/open?id=1N8bICHnFit6lLGvGwVu6bnDttyTk6wGH), and then put the model into models/
 
 3. To try the demo of Deep GrabCut, please run:
     ```Shell
@@ -30,7 +30,7 @@ If installed correctly, the result should look like this:
 
 To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additional steps:
 
-4. Download the pre-trained PSPNet model for semantic segmentation, taken from [this](https://github.com/isht7/pytorch-deeplab-resnet) repository.
+4. Download the pre-trained PSPNet model for semantic segmentation, taken from this [repository](https://github.com/isht7/pytorch-deeplab-resnet).
     ```Shell
     cd models/
     chmod +x download_pretrained_psp_model.sh
@@ -41,6 +41,4 @@ To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additiona
 
 6. Run ```python train.py``` to train Deep Grabcut.
 
-### Acknowledgment
-We thank the authors of [DEXTR-PyTorch](https://github.com/scaelles/DEXTR-PyTorch), our repo borrows tons of code from them.
 
