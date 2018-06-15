@@ -27,10 +27,8 @@ class VOCSegmentation(Dataset):
         super().__init__()
         self._base_dir = base_dir
         self._image_dir = os.path.join(self._base_dir, 'JPEGImages')
-        self._annotation_dir = os.path.join(self._base_dir, 'SegmentationGT')
         self._mask_dir = os.path.join(self._base_dir, 'SegmentationObject')
         self._cat_dir = os.path.join(self._base_dir, 'SegmentationClass')
-        self._dismaps_dir = os.path.join(self._base_dir, 'DistanceMaps')
 
         self.area_thres = area_thres
         self.default = default

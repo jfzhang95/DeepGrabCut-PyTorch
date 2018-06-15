@@ -21,7 +21,7 @@ def outS(i):
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1,  dilation_=1, downsample=None):
+    def __init__(self, inplanes, planes, stride=1, dilation_=1, downsample=None):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False) # change
         self.bn1 = nn.BatchNorm2d(planes, affine=affine_par)
@@ -37,8 +37,8 @@ class Bottleneck(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes, affine=affine_par)
         for i in self.bn2.parameters():
             i.requires_grad = False
-        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * 4, affine=affine_par)
+        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * self.expansion, affine=affine_par)
         for i in self.bn3.parameters():
             i.requires_grad = False
         self.relu = nn.ReLU(inplace=True)
@@ -88,7 +88,7 @@ class ClassifierModule(nn.Module):
 
 class PSPModule(nn.Module):
     """
-    Pyramid Scene Parsing module
+    Pyramid Scene Parsing moduleD
     """
     def __init__(self, in_features=2048, out_features=512, sizes=(1, 2, 3, 6), n_classes=1):
         super(PSPModule, self).__init__()
@@ -115,7 +115,7 @@ class PSPModule(nn.Module):
 
     def forward(self, feats):
         h, w = feats.size(2), feats.size(3)
-        priors = [F.upsample(input=stage(feats), size=(h, w), mode='bilinear') for stage in self.stages]
+        priors = [F.upsample(input=stage(feats), size=(h, w), mode='bilinear', align_corners=True) for stage in self.stages]
         priors.append(feats)
         bottle = self.relu(self.bottleneck(torch.cat(priors, 1)))
         out = self.final(bottle)
@@ -238,9 +238,9 @@ class MS_Deeplab(nn.Module):
 
     def forward(self, x):
         input_size = x.size()[2]
-        self.interp1 = nn.Upsample(size=(int(input_size*0.75)+1, int(input_size*0.75)+1), mode='bilinear')
-        self.interp2 = nn.Upsample(size=(int(input_size*0.5)+1, int(input_size*0.5)+1), mode='bilinear')
-        self.interp3 = nn.Upsample(size=(outS(input_size), outS(input_size)), mode='bilinear')
+        self.interp1 = nn.Upsample(size=(int(input_size*0.75)+1, int(input_size*0.75)+1), mode='bilinear', align_corners=True)
+        self.interp2 = nn.Upsample(size=(int(input_size*0.5)+1, int(input_size*0.5)+1), mode='bilinear', align_corners=True)
+        self.interp3 = nn.Upsample(size=(outS(input_size), outS(input_size)), mode='bilinear', align_corners=True)
         out = []
         x2 = self.interp1(x)
         x3 = self.interp2(x)

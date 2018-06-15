@@ -11,4 +11,5 @@ class Path(object):
 
     @staticmethod
     def models_dir():
-        return 'models/'
+        return '/home/zvision/models/'
+

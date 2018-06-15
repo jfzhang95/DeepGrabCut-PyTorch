@@ -7,7 +7,6 @@ from collections import OrderedDict
 import scipy.misc as sm
 import numpy as np
 
-
 # PyTorch includes
 import torch
 from torch.autograd import Variable
@@ -22,10 +21,10 @@ from tensorboardX import SummaryWriter
 # Custom includes
 from dataset.combine_dbs import CombineDBs as combine_dbs
 from dataset import pascal, sbd
-from mypath import Path
 from networks import deeplab_resnet as resnet
 from layers.loss import class_balanced_cross_entropy_loss
 from dataset import custom_transforms as tr
+from dataset.utils import generate_param_report
      
 
 gpu_id = 0
@@ -52,9 +51,6 @@ p['momentum'] = 0.9  # Momentum
 save_dir_root = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 exp_name = os.path.dirname(os.path.abspath(__file__)).split('/')[-1]
 
-print(save_dir_root)
-print(exp_name)
-
 if resume_epoch == 0:
     runs = sorted(glob.glob(os.path.join(save_dir_root, 'run', 'run_*')))
     run_id = int(runs[-1].split('_')[-1]) + 1 if runs else 0
@@ -77,6 +73,7 @@ else:
     net.load_state_dict(
         torch.load(os.path.join(save_dir, 'models', modelName + '_epoch-' + str(resume_epoch - 1) + '.pth'),
                    map_location=lambda storage, loc: storage)) # Load all tensors onto the CPU
+
 train_params = [{'params': resnet.get_1x_lr_params(net), 'lr': p['lr']},
                 {'params': resnet.get_10x_lr_params(net), 'lr': p['lr'] * 10}]
 if gpu_id >= 0:
@@ -118,6 +115,7 @@ if resume_epoch != nEpochs:
     trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
     testloader = DataLoader(voc_val, batch_size=testBatch, shuffle=False, num_workers=2)
 
+    generate_param_report(os.path.join(save_dir, exp_name + '.txt'), p)
 
     num_img_tr = len(trainloader)
     num_img_ts = len(testloader)
@@ -141,7 +139,8 @@ if resume_epoch != nEpochs:
                 inputs, gts = inputs.cuda(), gts.cuda()
 
             output = net.forward(inputs)
-            output = upsample(output, size=(450, 450), mode='bilinear')
+            output = upsample(output, size=(450, 450), mode='bilinear', align_corners=True)
+
 
             # Compute the losses, side outputs and fuse
             loss = class_balanced_cross_entropy_loss(output, gts, size_average=False, batch_average=True)
