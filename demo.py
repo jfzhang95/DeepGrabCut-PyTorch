@@ -5,7 +5,7 @@ import torch
 
 
 from torch.nn.functional import upsample
-from dataset import utils
+from dataloaders import utils
 import networks.deeplab_resnet as resnet
 
 from glob import glob

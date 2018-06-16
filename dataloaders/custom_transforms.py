@@ -2,7 +2,7 @@ import torch, cv2
 
 import numpy.random as random
 import numpy as np
-from dataset import utils
+from dataloaders import utils
 
 class ScaleNRotate(object):
     """Scale (zoom-in, zoom-out) and Rotate the image and the ground truth.

@@ -171,7 +171,7 @@ class SBDSegmentation(data.Dataset):
 
 
 if __name__ == '__main__':
-    from dataset import custom_transforms as tr
+    from dataloaders import custom_transforms as tr
     from torch.utils.data import DataLoader
     from torchvision import transforms
     import matplotlib.pyplot as plt

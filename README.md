@@ -2,7 +2,7 @@
 
 ![DEXTR](doc/deepgc.png)
 
-This is a PyTorch implementation of [Deep GrabCut](https://arxiv.org/pdf/1707.00243), for object segmentation. We use DeepLab-v2 instead of DeconvNet in this repo.
+This is a PyTorch implementation of [Deep GrabCut](https://arxiv.org/pdf/1707.00243), for object segmentation. We use DeepLab-v2 instead of DeconvNet in this repository.
 
 ### Installation
 The code was tested with Python 3.5. To use this code, please do:

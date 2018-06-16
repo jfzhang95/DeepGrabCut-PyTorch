@@ -19,19 +19,19 @@ from torch.nn.functional import upsample
 from tensorboardX import SummaryWriter
 
 # Custom includes
-from dataset.combine_dbs import CombineDBs as combine_dbs
-from dataset import pascal, sbd
+from dataloaders.combine_dbs import CombineDBs as combine_dbs
+from dataloaders import pascal, sbd
 from networks import deeplab_resnet as resnet
 from layers.loss import class_balanced_cross_entropy_loss
-from dataset import custom_transforms as tr
-from dataset.utils import generate_param_report
+from dataloaders import custom_transforms as tr
+from dataloaders.utils import generate_param_report
      
 
 gpu_id = 0
 print('Using GPU: {} '.format(gpu_id))
 # Setting parameters
 use_sbd = True
-nEpochs = 250  # Number of epochs for training
+nEpochs = 200  # Number of epochs for training
 resume_epoch = 0  # Default is 0, change if want to resume
 
 p = OrderedDict()  # Parameters to include in report
@@ -40,7 +40,7 @@ p['trainBatch'] = 4  # Training batch size
 testBatch = 4  # Testing batch size
 useTest = True  # See evolution of the test set when training
 nTestInterval = 10  # Run on test set every nTestInterval epochs
-snapshot = 50  # Store a model every snapshot epochs
+snapshot = 15  # Store a model every snapshot epochs
 nInputChannels = 4  # Number of input channels (RGB + Distance Map of bounding box)
 zero_pad_crop = True  # Insert zero padding when cropping the image
 p['nAveGrad'] = 1  # Average the gradient of several iterations
@@ -51,7 +51,7 @@ p['momentum'] = 0.9  # Momentum
 save_dir_root = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 exp_name = os.path.dirname(os.path.abspath(__file__)).split('/')[-1]
 
-if resume_epoch == 0:
+if resume_epoch != 0:
     runs = sorted(glob.glob(os.path.join(save_dir_root, 'run', 'run_*')))
     run_id = int(runs[-1].split('_')[-1]) + 1 if runs else 0
 else:
@@ -147,7 +147,7 @@ if resume_epoch != nEpochs:
             running_loss_tr += loss.item()
 
             # Print stuff
-            if ii % num_img_tr == num_img_tr - 1 or ii == 0:
+            if ii % num_img_tr == num_img_tr - 1:
                 running_loss_tr = running_loss_tr / num_img_tr
                 writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
                 print('[Epoch: %d, numImages: %5d]' % (epoch, ii * p['trainBatch'] + inputs.data.shape[0]))
@@ -200,11 +200,3 @@ if resume_epoch != nEpochs:
                     running_loss_ts = 0
 
     writer.close()
-
-
-
-
-
-
-
-
