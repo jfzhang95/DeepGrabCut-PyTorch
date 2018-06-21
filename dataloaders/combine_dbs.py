@@ -65,8 +65,8 @@ class CombineDBs(data.Dataset):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from dataset import pascal
-    from dataset import sbd
+    from dataloaders import pascal
+    from dataloaders import sbd
     import torch
     import numpy as np
     import dataset.custom_transforms as tr

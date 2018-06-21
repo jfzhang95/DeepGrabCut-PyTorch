@@ -32,7 +32,7 @@ print('Using GPU: {} '.format(gpu_id))
 # Setting parameters
 use_sbd = True
 nEpochs = 200  # Number of epochs for training
-resume_epoch = 0  # Default is 0, change if want to resume
+resume_epoch = 30  # Default is 0, change if want to resume
 
 p = OrderedDict()  # Parameters to include in report
 classifier = 'psp'  # Head classifier to use
@@ -40,7 +40,7 @@ p['trainBatch'] = 4  # Training batch size
 testBatch = 4  # Testing batch size
 useTest = True  # See evolution of the test set when training
 nTestInterval = 10  # Run on test set every nTestInterval epochs
-snapshot = 15  # Store a model every snapshot epochs
+snapshot = 10  # Store a model every snapshot epochs
 nInputChannels = 4  # Number of input channels (RGB + Distance Map of bounding box)
 zero_pad_crop = True  # Insert zero padding when cropping the image
 p['nAveGrad'] = 1  # Average the gradient of several iterations
@@ -53,7 +53,7 @@ exp_name = os.path.dirname(os.path.abspath(__file__)).split('/')[-1]
 
 if resume_epoch != 0:
     runs = sorted(glob.glob(os.path.join(save_dir_root, 'run', 'run_*')))
-    run_id = int(runs[-1].split('_')[-1]) + 1 if runs else 0
+    run_id = int(runs[-1].split('_')[-1]) if runs else 0
 else:
     run_id = 0
 
@@ -185,7 +185,7 @@ if resume_epoch != nEpochs:
 
                 with torch.no_grad():
                     output = net.forward(inputs)
-                output = upsample(output, size=(450, 450), mode='bilinear')
+                output = upsample(output, size=(450, 450), mode='bilinear', align_corners=True)
 
                 # Compute the losses, side outputs and fuse
                 loss = class_balanced_cross_entropy_loss(output, gts, size_average=False)
