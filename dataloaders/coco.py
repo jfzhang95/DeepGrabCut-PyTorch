@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
     voc_train = COCOSegmentation(split='val', transform=composed_transforms_tr)
 
-    dataloader = DataLoader(voc_train, batch_size=5, shuffle=False, num_workers=0)
+    dataloader = DataLoader(voc_train, batch_size=5, shuffle=True, num_workers=4)
 
     for ii, sample in enumerate(dataloader):
         for jj in range(sample["image"].size()[0]):
@@ -178,4 +178,5 @@ if __name__ == '__main__':
 
         if ii == 1:
             break
+            
     plt.show(block=True)

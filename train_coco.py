@@ -5,7 +5,6 @@ import os
 import glob
 from collections import OrderedDict
 
-
 # PyTorch includes
 import torch
 from torch.autograd import Variable
@@ -18,20 +17,17 @@ from torch.nn.functional import upsample
 from tensorboardX import SummaryWriter
 
 # Custom includes
-from dataloaders.combine_dbs import CombineDBs as combine_dbs
-from dataloaders import pascal, sbd
+from dataloaders import coco
 from networks import deeplab_resnet as resnet
 from layers.loss import class_balanced_cross_entropy_loss
 from dataloaders import custom_transforms as tr
 from dataloaders.utils import generate_param_report
-     
 
 gpu_id = 0
 print('Using GPU: {} '.format(gpu_id))
 # Setting parameters
-use_sbd = True
 nEpochs = 200  # Number of epochs for training
-resume_epoch = 30  # Default is 0, change if want to resume
+resume_epoch = 0  # Default is 0, change if want to resume
 
 p = OrderedDict()  # Parameters to include in report
 classifier = 'psp'  # Head classifier to use
@@ -72,10 +68,13 @@ else:
         os.path.join(save_dir, 'models', modelName + '_epoch-' + str(resume_epoch - 1) + '.pth')))
     net.load_state_dict(
         torch.load(os.path.join(save_dir, 'models', modelName + '_epoch-' + str(resume_epoch - 1) + '.pth'),
-                   map_location=lambda storage, loc: storage)) # Load all tensors onto the CPU
+                   map_location=lambda storage, loc: storage))  # Load all tensors onto the CPU
+
+# TODO: Load pretrained model on pascal dataset
 
 train_params = [{'params': resnet.get_1x_lr_params(net), 'lr': p['lr']},
                 {'params': resnet.get_10x_lr_params(net), 'lr': p['lr'] * 10}]
+
 if gpu_id >= 0:
     torch.cuda.set_device(device=gpu_id)
     net.cuda()
@@ -103,17 +102,11 @@ if resume_epoch != nEpochs:
         tr.ConcatInputs(elems=('image', 'distance_map')),
         tr.ToTensor()])
 
-    voc_train = pascal.VOCSegmentation(split='train', transform=composed_transforms_tr)
-    voc_val = pascal.VOCSegmentation(split='val', transform=composed_transforms_ts)
+    coco_train = coco.COCOSegmentation(split='train', transform=composed_transforms_tr)
+    coco_val = coco.COCOSegmentation(split='val', transform=composed_transforms_ts)
 
-    if use_sbd:
-        sbd_train = sbd.SBDSegmentation(split=['train', 'val'], transform=composed_transforms_tr, retname=True)
-        db_train = combine_dbs([voc_train, sbd_train], excluded=[voc_val])
-    else:
-        db_train = voc_train
-
-    trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
-    testloader = DataLoader(voc_val, batch_size=testBatch, shuffle=False, num_workers=2)
+    trainloader = DataLoader(coco_train, batch_size=p['trainBatch'], shuffle=True, num_workers=4)
+    testloader = DataLoader(coco_val, batch_size=testBatch, shuffle=False, num_workers=4)
 
     generate_param_report(os.path.join(save_dir, exp_name + '.txt'), p)
 
@@ -141,7 +134,6 @@ if resume_epoch != nEpochs:
             output = net.forward(inputs)
             output = upsample(output, size=(450, 450), mode='bilinear', align_corners=True)
 
-
             # Compute the losses, side outputs and fuse
             loss = class_balanced_cross_entropy_loss(output, gts, size_average=False, batch_average=True)
             running_loss_tr += loss.item()
@@ -149,7 +141,7 @@ if resume_epoch != nEpochs:
             # Print stuff
             if ii % num_img_tr == num_img_tr - 1:
                 running_loss_tr = running_loss_tr / num_img_tr
-                writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
+                writer.add_scalar('train/total_loss_epoch', running_loss_tr, epoch)
                 print('[Epoch: %d, numImages: %5d]' % (epoch, ii * p['trainBatch'] + inputs.data.shape[0]))
                 print('Loss: %f' % running_loss_tr)
                 running_loss_tr = 0
@@ -163,7 +155,7 @@ if resume_epoch != nEpochs:
 
             # Update the weights once in p['nAveGrad'] forward passes
             if aveGrad % p['nAveGrad'] == 0:
-                writer.add_scalar('data/total_loss_iter', loss.item(), ii + num_img_tr * epoch)
+                writer.add_scalar('train/total_loss_iter', loss.item(), ii + num_img_tr * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
                 aveGrad = 0
@@ -191,9 +183,12 @@ if resume_epoch != nEpochs:
                 loss = class_balanced_cross_entropy_loss(output, gts, size_average=False)
                 running_loss_ts += loss.item()
 
+
                 # Print stuff
                 if ii % num_img_ts == num_img_ts - 1:
                     running_loss_ts = running_loss_ts / num_img_ts
+                    writer.add_scalar('val/total_loss_epoch', running_loss_ts, epoch)
+                    print('Validation:')
                     print('[Epoch: %d, numImages: %5d]' % (epoch, ii * testBatch + inputs.data.shape[0]))
                     writer.add_scalar('data/test_loss_epoch', running_loss_ts, epoch)
                     print('Loss: %f' % running_loss_ts)

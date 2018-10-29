@@ -9,7 +9,7 @@ from copy import deepcopy
 def distance_map(mask, pad=10, v=0.15, relax=False):
     bounds = (0, 0, mask.shape[1] - 1, mask.shape[0] - 1)
 
-    bbox = get_bbox(mask, pad=pad, relax=relax) # get image bounding box
+    bbox = get_bbox(mask, pad=pad, relax=relax)  # get image bounding box
     if bbox is not None:
         bbox = add_turbulence(bbox, v=v)
     else:
@@ -37,7 +37,7 @@ def compute_dismap(dismap, bbox):
     cv2.line(dismap, (x_max, y_max), (x_max, y_min), color=1, thickness=1)
     cv2.line(dismap, (x_max, y_max), (x_min, y_max), color=1, thickness=1)
 
-    tmp = (dismap > 0).astype(np.uint8) # mark boundary
+    tmp = (dismap > 0).astype(np.uint8)  # mark boundary
     tmp_ = deepcopy(tmp)
 
     fill_mask = np.ones((tmp.shape[0] + 2, tmp.shape[1] + 2)).astype(np.uint8)
@@ -45,8 +45,8 @@ def compute_dismap(dismap, bbox):
     cv2.floodFill(tmp_, fill_mask, (int((x_min + x_max) / 2), int((y_min + y_max) / 2)), 5) # fill pixel inside bounding box
 
     tmp_ = tmp_.astype(np.int8)
-    tmp_[tmp_ == 5] = -1 # pixel inside bounding box
-    tmp_[tmp_ == 0] = 1 # pixel on and outside bounding box
+    tmp_[tmp_ == 5] = -1  # pixel inside bounding box
+    tmp_[tmp_ == 0] = 1  # pixel on and outside bounding box
 
     tmp = (tmp == 0).astype(np.uint8)
 
