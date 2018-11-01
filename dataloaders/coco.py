@@ -4,8 +4,8 @@ from pycocotools import mask as maskUtils
 from pycocotools.coco import COCO
 from torch.utils.data import Dataset
 from mypath import Path
-from PIL import Image
-
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class COCOSegmentation(Dataset):
     """
