@@ -41,4 +41,5 @@ To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additiona
 
 6. Run ```python train.py``` to train Deep Grabcut.
 
-
+7. If you want to train model on COCO dataset, you should first config COCO dataset path, and then run
+```python train_coco.py``` to train model.

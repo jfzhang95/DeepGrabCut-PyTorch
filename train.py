@@ -31,7 +31,7 @@ print('Using GPU: {} '.format(gpu_id))
 # Setting parameters
 use_sbd = True
 nEpochs = 200  # Number of epochs for training
-resume_epoch = 30  # Default is 0, change if want to resume
+resume_epoch = 0  # Default is 0, change if want to resume
 
 p = OrderedDict()  # Parameters to include in report
 classifier = 'psp'  # Head classifier to use
@@ -43,8 +43,8 @@ snapshot = 10  # Store a model every snapshot epochs
 nInputChannels = 4  # Number of input channels (RGB + Distance Map of bounding box)
 zero_pad_crop = True  # Insert zero padding when cropping the image
 p['nAveGrad'] = 1  # Average the gradient of several iterations
-p['lr'] = 1e-8  # Learning rate
-p['wd'] = 0.0005  # Weight decay
+p['lr'] = 1e-4  # Learning rate
+p['wd'] = 5e-4  # Weight decay
 p['momentum'] = 0.9  # Momentum
 
 save_dir_root = os.path.join(os.path.dirname(os.path.abspath(__file__)))
@@ -143,7 +143,7 @@ if resume_epoch != nEpochs:
 
 
             # Compute the losses, side outputs and fuse
-            loss = class_balanced_cross_entropy_loss(output, gts, size_average=False, batch_average=True)
+            loss = class_balanced_cross_entropy_loss(output, gts, size_average=True, batch_average=True)
             running_loss_tr += loss.item()
 
             # Print stuff
@@ -188,7 +188,7 @@ if resume_epoch != nEpochs:
                 output = upsample(output, size=(450, 450), mode='bilinear', align_corners=True)
 
                 # Compute the losses, side outputs and fuse
-                loss = class_balanced_cross_entropy_loss(output, gts, size_average=False)
+                loss = class_balanced_cross_entropy_loss(output, gts, size_average=True)
                 running_loss_ts += loss.item()
 
                 # Print stuff

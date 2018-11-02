@@ -35,12 +35,12 @@ p['trainBatch'] = 4  # Training batch size
 testBatch = 4  # Testing batch size
 useTest = True  # See evolution of the test set when training
 nTestInterval = 10  # Run on test set every nTestInterval epochs
-snapshot = 10  # Store a model every snapshot epochs
+snapshot = 1  # Store a model every snapshot epochs
 nInputChannels = 4  # Number of input channels (RGB + Distance Map of bounding box)
 zero_pad_crop = True  # Insert zero padding when cropping the image
 p['nAveGrad'] = 1  # Average the gradient of several iterations
-p['lr'] = 1e-8  # Learning rate
-p['wd'] = 0.0005  # Weight decay
+p['lr'] = 1e-4  # Learning rate
+p['wd'] = 5e-4  # Weight decay
 p['momentum'] = 0.9  # Momentum
 
 save_dir_root = os.path.join(os.path.dirname(os.path.abspath(__file__)))
@@ -70,7 +70,7 @@ else:
         torch.load(os.path.join(save_dir, 'models', modelName + '_epoch-' + str(resume_epoch - 1) + '.pth'),
                    map_location=lambda storage, loc: storage))  # Load all tensors onto the CPU
 
-# TODO: Load pretrained model on pascal dataset
+# TODO: Load model trained on VOC and SBD datasets
 
 train_params = [{'params': resnet.get_1x_lr_params(net), 'lr': p['lr']},
                 {'params': resnet.get_10x_lr_params(net), 'lr': p['lr'] * 10}]
@@ -135,7 +135,7 @@ if resume_epoch != nEpochs:
             output = upsample(output, size=(450, 450), mode='bilinear', align_corners=True)
 
             # Compute the losses, side outputs and fuse
-            loss = class_balanced_cross_entropy_loss(output, gts, size_average=False, batch_average=True)
+            loss = class_balanced_cross_entropy_loss(output, gts, size_average=True, batch_average=True)
             running_loss_tr += loss.item()
 
             # Print stuff
@@ -180,7 +180,7 @@ if resume_epoch != nEpochs:
                 output = upsample(output, size=(450, 450), mode='bilinear', align_corners=True)
 
                 # Compute the losses, side outputs and fuse
-                loss = class_balanced_cross_entropy_loss(output, gts, size_average=False)
+                loss = class_balanced_cross_entropy_loss(output, gts, size_average=True)
                 running_loss_ts += loss.item()
 
 
