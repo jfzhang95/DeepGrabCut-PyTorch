@@ -27,8 +27,9 @@ The code was tested with Python 3.5. To use this code, please do:
     ```
 If installed correctly, the result should look like this:
 <p align="center"><img src="doc/demo.gif" align="center" width=450 height=auto/></p>
+Note that the provided model was trained only on VOC 2012 dataset. You will get better results if you train model on both VOC and SBD dataset.
 
-To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additional steps:
+To train Deep GrabCut on VOC (or VOC + SBD), please follow these additional steps:
 
 4. Download the pre-trained PSPNet model for semantic segmentation, taken from this [repository](https://github.com/isht7/pytorch-deeplab-resnet).
     ```Shell
@@ -37,7 +38,7 @@ To train Deep GrabCut on PASCAL (or PASCAL + SBD), please follow these additiona
     ./download_pretrained_psp_model.sh
     cd ..
     ```
-5. Set the paths in ```mypath.py```, so that they point to the location of PASCAL/SBD dataset.
+5. Set the paths in ```mypath.py```, so that they point to the location of VOC/SBD dataset.
 
 6. Run ```python train.py``` to train Deep Grabcut.
 
