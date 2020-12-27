@@ -1,0 +1,6 @@
+gdown
+matplotlib
+opencv-contrib-python-headless
+pillow
+torch
+torchvision
