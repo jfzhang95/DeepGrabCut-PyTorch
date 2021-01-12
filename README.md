@@ -37,16 +37,16 @@ Note that the provided model was trained only on VOC 2012 dataset. You will get 
 
 To train Deep GrabCut on VOC (or VOC + SBD), please follow these additional steps:
 
-1. Download the pre-trained PSPNet model for semantic segmentation, taken from this [repository](https://github.com/isht7/pytorch-deeplab-resnet).
+0. Download the pre-trained PSPNet model for semantic segmentation, taken from this [repository](https://github.com/isht7/pytorch-deeplab-resnet).
     ```Shell
     cd models/
     chmod +x download_pretrained_psp_model.sh
     ./download_pretrained_psp_model.sh
     cd ..
     ```
-2. Set the paths in ```mypath.py```, so that they point to the location of VOC/SBD dataset.
+1. Set the paths in ```mypath.py```, so that they point to the location of VOC/SBD dataset.
 
-3. Run ```python train.py``` to train Deep Grabcut.
+2. Run ```python train.py``` to train Deep Grabcut.
 
-4. If you want to train model on COCO dataset, you should first config COCO dataset path in mypath.py, and then run
+3. If you want to train model on COCO dataset, you should first config COCO dataset path in mypath.py, and then run
 ```python train_coco.py``` to train model.
