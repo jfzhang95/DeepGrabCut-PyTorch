@@ -28,7 +28,7 @@ The code was tested with Python 3.5. To use this code, please do:
     python demo.py
     # 1-When window appears, press "s"
     # 2-Draw circle
-    # 3-Press spacebar and wait for 2 -3 seconds
+    # 3-Press spacebar and wait for 2 - 3 seconds
     ```
 
 If installed correctly, the result should look like this:
